@@ -1,0 +1,283 @@
+\documentclass[11pt, a4paper, titlepage]{article}
+\usepackage[czech]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[left=2cm,top=3cm,text={17cm,24cm}]{geometry}
+\usepackage{times}
+\usepackage[hidelinks]{hyperref}
+\usepackage{multirow}
+\usepackage[ruled, noline, czech, linesnumbered, longend]{algorithm2e}
+\usepackage{graphics}
+\usepackage{pdflscape}
+\usepackage{setspace}
+\usepackage{pict2e}
+\urlstyle{same}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+{\Huge\textsc{
+Vysoké učení technické v~Brně\\[0.4em]}}
+{\huge\textsc{
+Fakulta informačních technologií}}
+\vspace{\stretch{0.382}}
+
+{\LARGE
+Typografie a publikování\,--\,3. projekt\\}
+\Huge{Tabulky a obrázky}
+\vspace{\stretch{0.618}}
+
+{\Large
+\today
+\hfill
+Petr Bartoš
+}
+\end{center}
+\end{titlepage}
+
+
+\section{Úvodní strana}
+Název práce umístěte do zlatého řezu a nezapomeňte uvést „dnešní“ datum a vaše jméno a příjmení.
+
+\section{Tabulky}
+Pro sázení tabulek můžeme použít buď prostředí\verb| tabbing |nebo prostředí\verb| tabular|.
+
+\subsection{Prostředí\texttt{ tabbing }}
+Při použití\verb| tabbing |vypadá tabulka následovně:
+\begin{tabbing}
+Vodní melouny \quad \= 99,99 \quad \= 99 kg \kill
+\textbf{Ovoce} \> \textbf{Cena} \> \textbf{Množství}\\
+Jablka\> 25,90 \> 3 kg\\
+Hrušky\> 27,40 \> 2,5 kg\\
+Vodní melouny\> 35,-- \> 1 kus\\
+\end{tabbing}
+Toto prostředí se dá také použít pro sázení algoritmů, ovšem vhodnější je použít prostředí\verb| algorithm |nebo \verb|algorithm2e |(viz sekce \ref*{section:algo}).
+
+\subsection{Prostředí\texttt{ tabular }}
+Další možností, jak vytvořit tabulku, je použít prostředí\verb| tabular|. Tabulky pak budou vypadat takto\footnote{Kdyby byl problem s\texttt{ cline,} zkuste se podívat třeba sem: \url{http://www.abclinuxu.cz/tex/poradna/show/325037}.}:
+
+\bigskip
+\begin{table}[h]\catcode`\-=12
+\centering
+\begin{tabular}{|l|c|c|} \hline
+& \multicolumn{2}{c|}{\textbf{Cena}}\\
+\cline{2-3} \textbf{Měna} & \textbf{nákup} & \textbf{prodej}\\ \hline 
+EUR & 24,775 & 25,943\\ 
+GBP & 29,394 & 30,492\\
+USD & 22,423 & 23,661\\ \hline
+\end{tabular}
+\caption{Tabulka kurzů k~dnešnímu dni}
+\label{tab:tab1}
+\end{table}
+\bigskip
+\begin{table}[h]\catcode`\-=12
+\centering
+\begin{tabular}{|c|c|}
+\hline
+$A$&$\neg A$\\ \hline
+\textbf{P} & N\\ \hline
+\textbf{O} & O\\ \hline
+\textbf{X} & X\\ \hline
+\textbf{N} & P\\ \hline
+\end{tabular}
+\begin{tabular}{|c|c|c|c|c|c|} \hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{$A \land B$}} & \multicolumn{4}{c|}{$B$}\\ \cline{3-6}
+\multicolumn{2}{|c|}{} & \textbf{P} & \textbf{O} & \textbf{X} & \textbf{N}\\ \cline{1-6}
+\multirow{4}{*}{$A$} & \textbf{P} & P & O & X & N\\ \cline{2-6}
+& \textbf{O} & O & O & N & N\\ \cline{2-6}
+& \textbf{X} & X & N & X & N\\ \cline{2-6}
+& \textbf{N} & N & N & N & N\\ \hline
+\end{tabular}
+\begin{tabular}{|c|c|c|c|c|c|}\hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{$A \lor B$}} & \multicolumn{4}{c|}{$B$}\\ \cline{3-6}
+\multicolumn{2}{|c|}{} & \textbf{P} & \textbf{O} & \textbf{X} & \textbf{N}\\ \cline{1-6}
+\multirow{4}{*}{$A$} & \textbf{P} & P & P & P & P\\\cline{2-6}
+& \textbf{O} & P & O & P & O\\\cline{2-6}
+& \textbf{X} & P & P & X & X\\\cline{2-6}
+& \textbf{N} & P & O & X & N\\\hline
+\end{tabular}
+\begin{tabular}{|c|c|c|c|c|c|}\hline
+\multicolumn{2}{|c|}{\multirow{2}{*}{$A \rightarrow B$}} & \multicolumn{4}{c|}{$B$}\\ \cline{3-6}
+\multicolumn{2}{|c|}{} & \textbf{P} & \textbf{O} & \textbf{X} & \textbf{N}\\ \cline{1-6}
+\multirow{4}{*}{$A$} & \textbf{P} & P & O & X & N\\ \cline{2-6}
+& \textbf{O} & P & O & P & O\\ \cline{2-6}
+& \textbf{X} & P & P & X & X\\ \cline{2-6}
+& \textbf{N} & P & P & P & P\\ \hline
+\end{tabular} \caption{Protože Kleeneho trojhodnotová logika už je „zastaralá“, uvádíme si zde příklad čtyřhodnotové logiky}
+\label{tab:tab2}
+\end{table}
+\bigskip
+\pagebreak
+\newpage
+
+\section{Algoritmy}
+\label{section:algo}
+Pokud budeme chtít vysázet algoritmus, můžeme použít prostředí\verb| algorithm|\footnote{Pro nápovědu, jak zacházet s~prostředím\texttt{ algorithm,} můžeme zkusit tuhle stránku:\\ \url{http://ftp.cstug.cz/pub/tex/CTAN/macros/latex/contrib/algorithms/algorithms.pdf}.} 
+\verb| |nebo\verb| algorithm2e|\footnote{Pro\texttt{ algorithm2e }zase tuhle: \url{http://ftp.cstug.cz/pub/tex/CTAN/macros/latex/contrib/algorithm2e/doc/algorithm2e.pdf}.}.
+Příklad použití prostředí\verb| algorithm2e |viz Algoritmus \ref*{algo:algo1}.
+
+\bigskip
+
+\IncMargin{1.5em}
+\begin{algorithm}
+\setstretch{0.92}
+\label{algo:algo1}
+\caption{\textsc{FastSLAM}}
+\SetNlSty{}{}{:}
+\SetAlgoNlRelativeSize{-1}
+\SetNlSkip{0.5em}
+\SetInd{0em}{1em}
+\Indm\Indmm
+\KwIn{$(X_{t-1}, u_t, z_t)$}
+\KwOut{$X_t$}
+\Indpp\Indp
+\SetInd{1em}{1em}
+\BlankLine
+$\overline{X_t} = X_t = 0$\\
+\For{$k = 1$\emph{ to }$M$}
+{
+$x_t^{[k]} = \emph{sample\_motion\_model}(u_t, x_{t - 1}^{[k]})$\\
+$\omega_t^{[k]} = \emph{measurement\_model}(z_t, x_t^{[k]}, m_{t - 1})$\\
+$m_t^{[k]} = updated\_occupancy\_grid(z_t, x_t^{[k]}, m_{t - 1}^{[k]})$\\
+$\overline{X_t} = \overline{X_t} + \langle x_x^{[m]}, \omega_t^{[m]}  \rangle$\\
+}
+\For{$k = 1$\emph{ to }$M$}
+{
+draw $i$ with probability $\approx \omega_t^{[i]}$\\
+add $\langle x_x^{[k]}, m_t^{[k]} \rangle $ to $ X_t$\\
+}
+\Return{$X_t$}
+\end{algorithm}
+
+\section{Obrázky}
+Do našich článků můžeme samozřejmě vkládat obrázky. Pokud je obrázkem fotografie, můžeme klidně použít bitmapový soubor. Pokud by to ale mělo být nějaké schéma nebo něco podobného, je dobrým zvykem takovýto
+obrázek vytvořit vektorově.
+
+\begin{figure}[h]
+\centering
+\scalebox{0.4}{
+\includegraphics{assets/etiopan.eps}
+\reflectbox{\includegraphics{assets/etiopan.eps}}}
+\caption{Malý Etiopánek a~jeho bratříček}
+\label{img:img1}
+\end{figure}
+\newpage
+
+Rozdíl mezi vektorovým \dots
+\begin{figure}[h]
+\centering
+\scalebox{0.4}{\includegraphics{assets/oniisan.eps}} 
+\caption{Vektorový obrázek}
+\label{img:img2}
+\end{figure}
+\bigskip
+
+\noindent\dots a bitmapovým obrázkem
+\begin{figure}[h]
+\centering
+\scalebox{0.6}{\includegraphics{assets/oniisan2.eps}} 
+\caption{Bitmapový obrázek} \label{pic:3}
+\label{img:img3}
+\end{figure} 
+\bigskip
+
+\noindent se projeví například při zvětšení.
+
+Odkazy (nejen ty) na obrázky \ref*{img:img1}, \ref*{img:img2} a \ref*{img:img3}, na tabulky \ref*{tab:tab1} a \ref*{tab:tab2} a také na algoritmus \ref*{algo:algo1} jsou udělány pomocí křížových odkazů. Pak je ovšem potřeba zdrojový soubor přeložit dvakrát.
+
+Vektorové obrázky lze vytvořit i přímo v~\LaTeX u, například pomocí prostředí\verb| picture |.
+\newpage
+\begin{landscape}
+\begin{figure}[ht]
+\setlength{\unitlength}{0.372mm}
+\centering
+\begin{picture}(600, 420)
+\put(85, 35){\line(1, 0){380}}
+\put(465, 275){\line(1, 0){30}}
+\put(425, 355){\line(-1, 0){40}}
+\put(385, 355){\line(-1, 1){40}}
+\put(345, 395){\line(-1, -1){40}}
+\put(305, 355){\line(-1, 0){60}}
+\put(245, 355){\line(-1, -1){70}}
+\put(185, 295){\line(-1, -1){10}}
+\put(175, 285){\line(0, -1){10}}
+\put(175, 275){\line(1, 0){20}}
+\put(195, 275){\line(1, 0){10}}
+\put(205, 275){\line(0, -1){100}}
+\put(205, 175){\line(-1, 0){100}}
+\put(55, 135){\line(0, -1){10}}
+\put(55, 125){\line(1, 0){30}}
+\put(85, 125){\line(0, -1){90}}
+\put(305, 355){\line(-1, -1){40}}
+\put(265, 315){\line(-1, -1){10}}
+\put(255, 305){\line(1, 0){170}}
+\put(385, 355){\line(1, -1){50}}
+\put(425, 305){\line(1, 0){10}}
+\put(175, 285){\line(1, 0){320}}
+\put(465, 275){\line(-1, 0){260}}
+\put(475, 305){\line(-1, 1){40}}
+\put(435, 345){\line(-1, 0){20}}
+\put(325, 325){\line(0, 1){30}}
+\put(325, 355){\line(1, 0){40}}
+\put(365, 355){\line(0, -1){30}}
+\put(365, 325){\line(-1, 0){40}}
+\put(345, 355){\line(0, -1){30}}
+\put(205, 175){\line(0, -1){140}}
+\put(85, 125){\line(1, 0){120}}
+\put(55, 135){\line(1, 0){150}}
+\put(115, 35){\line(0, 1){60}}
+\put(115, 95){\line(1, 0){60}}
+\put(175, 35){\line(0, 1){60}}
+\put(185, 35){\line(0, 1){70}}
+\put(185, 105){\line(-1, 0){70}}
+\put(105, 105){\line(0, -1){70}}
+\put(105, 105){\line(1, 0){10}}
+\put(115, 85){\line(1, 0){60}}
+\put(115, 75){\line(1, 0){60}}
+\put(115, 65){\line(1, 0){60}}
+\put(115, 55){\line(1, 0){60}}
+\put(115, 45){\line(1, 0){60}}
+\put(55, 135){\line(1, 1){40}}
+\put(95, 175){\line(1, 0){20}}
+\put(75, 145){\line(1, 1){20}}
+\put(95, 165){\line(1, 0){20}}
+\put(245, 255){\line(1, 0){50}}
+\put(295, 255){\line(1, 0){10}}
+\put(305, 255){\line(0, -1){40}}
+\put(305, 205){\line(-1, 0){60}}
+\put(245, 205){\line(0, 1){50}}
+\put(305, 205){\line(0, 1){10}}
+\put(435, 255){\line(-1, 0){50}}
+\put(385, 255){\line(-1, 0){10}}
+\put(375, 255){\line(0, -1){50}}
+\put(375, 205){\line(1, 0){60}}
+\put(435, 205){\line(0, 1){50}}
+\put(475, 275){\line(0, -1){240}}
+\put(475, 35){\line(-1, 0){20}}
+\put(495, 275){\line(1, 0){10}}
+\put(505, 275){\line(0, 1){10}}
+\put(505, 285){\line(-1, 0){10}}
+\put(505, 285){\line(-1, 1){70}}
+\put(435, 355){\line(-1, 0){20}}
+\put(255, 35){\line(0, 1){100}}
+\put(255, 135){\line(1, 0){50}}
+\put(305, 135){\line(1, 0){10}}
+\put(315, 135){\line(0, -1){100}}
+\put(355, 125){\line(1, 0){80}}
+\put(435, 125){\line(0, -1){50}}
+\put(355, 75){\line(1, 0){80}}
+\put(355, 75){\line(0, 1){50}}
+\put(205, 165){\line(1, 0){270}}
+\put(303, 75){\circle{6}}
+\put(205, 45){\line(1, 0){50}}
+\put(315, 45){\line(1, 0){160}}
+\put(5, 405){\line(0, -1){400}}
+\put(5, 5){\line(1, 0){590}}
+\put(595, 5){\line(0, 1){400}}
+\put(595, 405){\line(-1, 0){590}}
+\put(75, 350){\circle{55}}
+\end{picture}
+\caption{Vektorový obrázek moderního bydlení vhodného pro 21. století. (Buďto vytvořte stejný obrázek, anebo nakreslete pomocí\texttt{ picture }váš vlastní domov.)}
+\end{figure}
+\end{landscape}
+\end{document}
