@@ -1,0 +1,253 @@
+#!/bin/bash
+
+export POSIXLY_CORRECT=yes
+export LC_ALL=C
+
+print_help() {
+    echo "Použití: corona [-h] [FILTERS] [COMMAND] [LOG [LOG2 [...]]"
+    echo " "
+    echo "COMMAND může být jeden z:"
+    echo "  infected — spočítá počet nakažených"
+    echo "  merge — sloučí několik souborů se záznamy do jednoho, zachovávající původní pořadí"
+    echo "  gender — vypíše počet nakažených pro jednotlivá pohlaví"
+    echo "  age — vypíše statistiku počtu nakažených osob dle věku"
+    echo "  daily — vypíše statistiku nakažených osob pro jednotlivé dny"
+    echo "  monthly — vypíše statistiku nakažených osob pro jednotlivé měsíce"
+    echo "  yearly — vypíše statistiku nakažených osob pro jednotlivé roky"
+    echo "  countries — vypíše statistiku nakažených osob pro jednotlivé země nákazy (bez ČR, tj. kódu CZ)"
+    echo "  districts — vypíše statistiku nakažených osob pro jednotlivé okresy"
+    echo "  regions — vypíše statistiku nakažených osob pro jednotlivé kraje"
+    echo " "
+    echo "FILTERS může být kombinace následujících (každý maximálně jednou)"
+    echo "  -a DATETIME — after: jsou uvažovány pouze záznamy PO tomto datu (včetně tohoto data)"
+    echo "  -b DATETIME — before: jsou uvažovány pouze záznamy PŘED tímto datem (včetně tohoto data)"
+    echo "  -g GENDER — jsou uvažovány pouze záznamy nakažených osob daného pohlaví, GENDER může být M (muži) nebo Z (ženy)"
+    echo "  -s [WIDTH] u příkazů gender, age, daily, monthly, yearly, countries, districts a regions vypisuje data ne číselně, ale graficky v podobě histogramů"
+    echo "  -h Vypíše tuto zprávu"
+    echo " "
+    echo "  DATETIME je formátu YYYY-MM-DD"
+    echo "  nepovinný parametr WIDTH nastavuje šířku histogramů, tedy délku nejdelšího řádku, na WIDTH"
+}
+
+FILE_COUNTER=0
+WIDTH="-2"
+declare -a files
+declare -A flags
+declare -A defaultRanges=([gender]=100000 [age]=10000 [daily]=500 [monthly]=10000 [yearly]=100000 [countries]=100 [districts]=1000 [regions]=10000)
+
+setflag() {
+    if [[ -v flags["$1"] ]]; then
+        echo "Filtr $1 byl použit vícekrát" >&2
+        exit 1
+    else
+        flags[$1]=$2
+    fi
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+    -h)
+        print_help
+        exit 0
+        ;;
+    -a)
+        shift
+        if [[ "$1" =~ ^[0-9]{4}\-(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])$ ]] && date -d "$1" &>/dev/null; then
+            setflag "-a" "$1"
+            shift
+        else
+            echo "Datum není uvedeno ve správném formátu" >&2
+            exit 1
+        fi
+        ;;
+    -b)
+        shift
+        if [[ "$1" =~ ^[0-9]{4}\-(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])$ ]] && date -d "$1" &>/dev/null; then
+            setflag "-b" "$1"
+            shift
+        else
+            echo "Datum není uvedeno ve správném formátu" >&2
+            exit 1
+        fi
+        ;;
+    -g)
+        shift
+        if [[ "$1" = "M" || "$1" = "Z" ]]; then
+            setflag "-g" "$1"
+            shift
+        else
+            echo "Zadán špatný gender" >&2
+            exit 1
+        fi
+        ;;
+    -s)
+        shift
+        if [[ $1 =~ ^[0-9]+$ ]]; then
+            WIDTH="$1"
+            shift
+        else
+            WIDTH="-1"
+        fi
+        ;;
+    infected | merge | gender | age | daily | monthly | yearly | countries | districts | regions)
+        if [[ $COMMAND = "" ]]; then
+            COMMAND="$1"
+        else
+            echo "Zadáno více příkazů" >&2
+            exit 1
+        fi
+        shift
+        ;;
+    *)
+        if ! [ -e "$1" ]; then
+            echo "Příkaz nebyl použit správně, zavolejte jej znovu s -h pro nápovědu" >&2
+            exit 1
+        else
+            case "$1" in
+            *.csv | *.gz | *.bz2)
+                FILE_COUNTER=$((FILE_COUNTER + 1))
+                files+=("$1")
+                ;;
+            *)
+                echo "Formát souboru $1 není podporovaný" >&2
+                exit 1
+                ;;
+            esac
+            shift
+        fi
+        ;;
+    esac
+done
+
+if [[ $FILE_COUNTER -eq 0 ]]; then
+    files+=("/dev/stdin")
+fi
+
+TEXT=""
+
+NLINE=$'\n'
+for file in "${files[@]}"; do
+    case "$file" in
+    *.csv)
+        TEXT+=$(sed "1c${NLINE}" "$file")
+        ;;
+
+    *.gz)
+        TEXT+=$(gunzip -d -c "$file" | sed "1c${NLINE}")
+        ;;
+
+    *.bz2)
+        TEXT+=$(bunzip2 -d -c "$file" | sed "1c${NLINE}")
+        ;;
+    *)
+        TEXT+=$(cat | sed "1c${NLINE}")
+        ;;
+    esac
+done
+
+# Remove blank lines
+TEXT=$(echo "$TEXT" | sed '/^[[:space:]]*$/d')
+
+# Check for invalid date
+# leapyear = (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0))
+# 
+#   if (month == 02)
+#       if leapyear && day >= 30
+#           return false
+#       if !leapyear && day >=29
+#           return false       
+#
+#   if (month in [02, 04, 06, 09, 11] && day == 31)   
+#       return false
+
+TEXT=$(echo "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" -e '
+    {year=substr($2,0,4);month=substr($2,6,2);day=substr($2,9,2);leapyear=(((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0))};
+    {if ($2 != "" && (($2 !~ /^[0-9]{4}\-(0[1-9]|1[012])\-(0[1-9]|[12][0-9]|3[01])$/) ||
+    ((month=="02") && ((leapyear==1 && (day == "30" || day == "31")) ||
+    (leapyear==0 && (day == "29" || day == "30" || day == "31")))) ||
+    ((month=="04"||month=="06"||month=="09"||month=="11") && day=="31"))) 
+    print "Invalid date:",$0 >"/dev/stderr"; else print $0;}')
+
+# Check for invalid age
+TEXT=$(echo "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" -e '{if ($3 != "" && $3 !~ /^[0-9]+$/) print "Invalid age:",$0 >"/dev/stderr"; else print $0;}')
+
+if [[ ${#flags[@]} -gt 0 ]]; then
+    for KEY in "${!flags[@]}"; do
+        case $KEY in
+        -a)
+            TEXT=$(echo "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" -v cond="${flags[$KEY]}" -e '$2 >= cond')
+            ;;
+        -b)
+            TEXT=$(echo "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" -v cond="${flags[$KEY]}" -e '$2 <= cond')
+            ;;
+        -g)
+            TEXT=$(echo "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" -v cond="${flags[$KEY]}" -e '$4 == cond')
+            ;;
+        -s)
+            WIDTH=${flags[$KEY]}
+            ;;
+        esac
+    done
+fi
+
+case $COMMAND in
+infected)
+    echo -n "$TEXT" | awk 'END{print NR}'
+    ;;
+gender)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[$4]++} 
+    END {printf "M: %d\nZ: %d\n", count["M"], count["Z"]; if (count[""]>0) printf "None: %d\n", count[""];}'
+    ;;
+daily)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[$2]++} 
+    END {for (date in count) if (date != "") printf "%s: %d\n", date, count[date] ; if (count[""]>0) printf "None: %d\n", count[""]; }' | sort -V
+    ;;
+monthly)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[substr($2, 1, length($2)-3)]++} 
+    END {for (date in count) if (date != "") printf "%s: %d\n", date, count[date]; if (count[""]>0) printf "None: %d\n", count[""];}' | sort -V
+    ;;
+yearly)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[substr($2, 1, length($2)-6)]++} 
+    END {for (date in count) if (date != "") printf "%s: %d\n", date, count[date]; if (count[""]>0) printf "None: %d\n", count[""];}' | sort -V
+    ;;
+countries)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[$8]++} 
+    END {for (date in count) if (date != "" && date != "CZ") printf "%s: %d\n", date, count[date];}' | sort -V
+    ;;
+districts)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[$6]++} 
+    END {for (date in count) if (date != "") printf "%s: %d\n", date, count[date]; if (count[""]>0) printf "None: %d\n", count[""];}' | sort -g
+    ;;
+regions)
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" '{count[$5]++} 
+    END {for (date in count) if (date != "") printf "%s: %d\n", date, count[date]; if (count[""]>0) printf "None: %d\n", count[""];}' | sort -V
+    ;;
+age)
+    # Make associative array from variable s, compare processed value to lower bound represented by the keys of the array, and
+    # increment value of the highest range the processed value belongs to
+    echo -n "$TEXT" | awk -F"[[:blank:]]*,[[:blank:]]*" -v t="0-5,6-15,16-25,26-35,36-45,46-55,56-65,66-75,76-85,86-95,96-105,>105" -v s="105,95,85,75,65,55,45,35,25,15,5,-1" \
+        'BEGIN{split(s,tmp_rang,/,/); 
+        for (i in tmp_rang) 
+            ranges[tmp_rang[i]]; 
+        split(t,tmp_text,/,/)} 
+
+    {working=""; for (number in ranges) 
+        {if ($3 > int(number)) working=number} ranges[working]++;} 
+
+    END {i=0; for (date in ranges) 
+        if (date != "") {i++; printf "%-6s: %d\n", tmp_text[i], ranges[date];} 
+        if (ranges[""]>0) printf "None  : %d\n", ranges[""];}'
+    ;;
+*)
+    echo "id,datum,vek,pohlavi,kraj_nuts_kod,okres_lau_kod,nakaza_v_zahranici,nakaza_zeme_csu_kod,reportovano_khs"
+    echo "$TEXT"
+    ;;
+esac | if [ "$WIDTH" != "-2" ] && [ "$COMMAND" != "infected" ]; then
+    if [[ $WIDTH != "-1" ]]; then
+        # Find column with the largest value and print it, move it to the first place using sed, then use the value as reference maximum
+        awk -F":[[:blank:]]*" 'BEGIN{max=0} {if ($2 > max) max=$2; print $0;} END{printf "DEBUG: %d\n",max}' | sed '1h;1d;$!H;$!d;G' |
+            awk -v w="$WIDTH" -F":[[:blank:]]*" '{if (NR<2) max=$2; else {printf "%s: ",$1; for (j=0; j<int(($2/max)*w);j++) {printf "#";} printf"\n"}}'
+    else
+        awk -v w="${defaultRanges[$COMMAND]}" -F":[[:blank:]]*" '{printf "%s: ",$1; for (i=0; i<int($2/w);i++) {printf "#";} printf"\n"}'
+    fi
+else cat | grep .; fi
