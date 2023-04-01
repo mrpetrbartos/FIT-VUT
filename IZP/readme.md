@@ -1,10 +1,17 @@
-# Ovìøování síly hesel (práce s textem)
-Cílem projektu je vytvoøit program, kterı na vstupu dostane sadu hesel a pro kadé z nich ovìøí, jestli heslo splòuje všechna (pevnì zadaná) poadovaná pravidla. Ta hesla, která projdou kontrolou, budou vypisována na vıstup, ostatní budou zahozena.
+# OvÄ›Å™ovÃ¡nÃ­ sÃ­ly hesel (prÃ¡ce s textem)
 
-## Syntax spuštìní
+CÃ­lem projektu je vytvoÅ™it program, kterÃ½ na vstupu dostane sadu hesel a pro kaÅ¾dÃ© z nich ovÄ›Å™Ã­, jestli heslo splÅˆuje vÅ¡echna (pevnÄ› zadanÃ¡) poÅ¾adovanÃ¡ pravidla. Ta hesla, kterÃ¡ projdou kontrolou, budou vypisovÃ¡na na vÃ½stup, ostatnÃ­ budou zahozena.
+
+## Syntax spuÅ¡tÄ›nÃ­
+
 ```
-./pwcheck LEVEL PARAM [--stats] 
+./pwcheck LEVEL PARAM [--stats]
 ```
-LEVEL - celé èíslo v intervalu [1, 4], které urèuje poadovanou úroveò bezpeènosti
-PARAM - kladné celé èíslo, které urèuje dodateènı parametr pravidel (viz níe)
---stats - pokud je zadané, urèuje, zda se na konci programu mají vypsat souhrnné statistiky analyzovanıch hesel
+
+LEVEL - celÃ© ÄÃ­slo v intervalu [1, 4], kterÃ© urÄuje poÅ¾adovanou ÃºroveÅˆ bezpeÄnosti PARAM - kladnÃ© celÃ© ÄÃ­slo, kterÃ© urÄuje dodateÄnÃ½ parametr pravidel (viz nÃ­Å¾e) --stats - pokud je zadanÃ©, urÄuje, zda se na konci programu majÃ­ vypsat souhrnnÃ© statistiky analyzovanÃ½ch hesel
+
+# HodnocenÃ­
+
+| Body    | Chyby                                                                                                                                                                                                                                                                                                                                                                 |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8.55/10 | -0.3: nektere nazvy funkci nejsou prilis vhodne </br> -0.1: nektere nazvy promennych nejsou prilis vhodne a na prvni pohled nepomahaji v pochopeni umyslu </br> -0.25: zadne vlastni funkce nemaji popis jejich signatury (co delaji/prijimaji/vraceji) </br> -0.25: i s komentarem jsem se musel na chvilku zamyslet co to dela </br> chybejici newlines u statistik |
