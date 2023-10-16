@@ -1,0 +1,239 @@
+Analýza pádu kernelu
+~~~
+./crash ...
+      KERNEL: vmlinux
+    DUMPFILE: vmcore_p2  [PARTIAL DUMP]
+        CPUS: 4
+        DATE: Wed Mar 23 15:02:26 CET 2022
+      UPTIME: 04:50:50
+LOAD AVERAGE: 0.00, 0.00, 0.00
+       TASKS: 186
+    NODENAME: rhel8-student-temp
+     RELEASE: 4.18.0-348.12.2.el8_5.x86_64
+     VERSION: #1 SMP Mon Jan 17 07:06:06 EST 2022
+     MACHINE: x86_64  (2095 Mhz)
+      MEMORY: 2 GB
+       PANIC: "Kernel panic - not syncing: Out of memory: system-wide panic_on_oom is enabled"
+         PID: 2359
+     COMMAND: "stress"
+        TASK: ff38963f46e65ac0  [THREAD_INFO: ff38963f46e65ac0]
+         CPU: 0
+       STATE: TASK_RUNNING (PANIC)
+       
+Vypadá to, že při vykonávání příkazu stress došla paměť.
+~~~
+crash> kmem -i
+                 PAGES        TOTAL      PERCENTAGE
+    TOTAL MEM   464508       1.8 GB         ----
+         FREE    12961      50.6 MB    2% of TOTAL MEM
+         USED   451547       1.7 GB   97% of TOTAL MEM
+       SHARED     1615       6.3 MB    0% of TOTAL MEM
+      BUFFERS        0            0    0% of TOTAL MEM
+       CACHED     2265       8.8 MB    0% of TOTAL MEM
+         SLAB     8339      32.6 MB    1% of TOTAL MEM
+
+   TOTAL HUGE        0            0         ----
+    HUGE FREE        0            0    0% of TOTAL HUGE
+
+   TOTAL SWAP        0            0         ----
+    SWAP USED        0            0    0% of TOTAL SWAP
+    SWAP FREE        0            0    0% of TOTAL SWAP
+
+ COMMIT LIMIT   232254     907.2 MB         ----
+    COMMITTED   607729       2.3 GB  261% of TOTAL LIMIT
+    
+Vidíme, že bylo využito 97 % paměti a nemáme k dispozici žádný swap space.
+~~~
+crash> ps | sort -rn -k 6 | head -5
+   PID    PPID  CPU       TASK        ST  %MEM     VSZ    RSS  COMM
+   2350   2348   1  ff38963f48800000  IN  25.0  532276 524388  stress
+   2349   2348   2  ff38963f46c00000  IN  25.0  532276 524388  stress
+   2360   2358   2  ff38963f41920000  UN   4.1  270132  85008  stress
+   1201      1   3  ff38963f46ebbc80  IN   0.8  706952  16396  tuned
+   1200      1   2  ff38963f46eb9e40  IN   0.8  706952  16396  tuned
+   
+Největší podíl na zabrání paměti má opravdu stress.
+~~~
+crash> ps | grep stress
+   2348   2287   1  ff38963f73d28000  IN   0.0    7984    104  stress
+   2349   2348   2  ff38963f46c00000  IN  25.0  532276 524388  stress
+   2350   2348   1  ff38963f48800000  IN  25.0  532276 524388  stress
+   2358   2287   1  ff38963f73d29e40  IN   0.0    7984    104  stress
+>  2359   2358   0  ff38963f46e65ac0  RU   6.5  270132 135372  stress
+   2360   2358   2  ff38963f41920000  UN   4.1  270132  85008  stress
+>  2361   2358   2  ff38963f54a35ac0  RU   8.1  270132 170676  stress
+>  2362   2358   1  ff38963f419d5ac0  RU   7.9  270132 165616  stress
+
+Běží na CPU 0, 1 a 2.
+~~~
+crash> log | less
+...
+[17192.674024] bash (2287): drop_caches: 3
+[17449.585352] stress invoked oom-killer: gfp_mask=0x6280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), order=0, oom_score_adj=0
+[17449.586210] CPU: 0 PID: 2359 Comm: stress Kdump: loaded Not tainted 4.18.0-348.12.2.el8_5.x86_64 #1
+[17449.586913] Hardware name: Red Hat Container-native virtualization/RHEL-AV, BIOS 1.14.0-1.module+el8.4.0+8855+a9e237a9 04/01/2014
+[17449.587810] Call Trace:
+[17449.588013]  dump_stack+0x5c/0x80
+[17449.588278]  dump_header+0x4a/0x1db
+[17449.588558]  out_of_memory.cold.35+0xa/0x7e
+[17449.588887]  __alloc_pages_slowpath+0xbe5/0xcd0
+[17449.589243]  __alloc_pages_nodemask+0x2db/0x310
+[17449.589601]  alloc_pages_vma+0x74/0x1d0
+[17449.589903]  do_anonymous_page+0x77/0x310
+[17449.590217]  __handle_mm_fault+0x7e6/0x820
+[17449.590541]  ? __switch_to_asm+0x41/0x70
+[17449.590849]  handle_mm_fault+0xbe/0x1e0
+[17449.591151]  __do_page_fault+0x1ed/0x4c0
+[17449.591460]  do_page_fault+0x37/0x130
+[17449.591748]  ? page_fault+0x8/0x30
+[17449.592016]  page_fault+0x1e/0x30
+[17449.592278] RIP: 0033:0x56525428d210
+[17449.592563] Code: Unable to access opcode bytes at RIP 0x56525428d1e6.
+[17449.593066] RSP: 002b:00007ffe41cb9f40 EFLAGS: 00010206
+[17449.593474] RAX: 000000000841a000 RBX: 0000000000000000 RCX: 00007fb13e034010
+[17449.594021] RDX: 0000000000000000 RSI: 0000000010001000 RDI: 0000000000000000
+[17449.594570] RBP: 00007fb13e034010 R08: 00000000ffffffff R09: 0000000000000000
+[17449.595118] R10: 0000000000000022 R11: 0000000000000246 R12: 0000000000001000
+[17449.595668] R13: 000056525428f004 R14: 0000000000000002 R15: 0000000010000000
+
+Zřejmě na CPU 0 vypadla nějaká stránka, a tak jsme zkoušeli alokovat novou, avšak došlo místo. Ač vidíme volání oom-killer, 
+žádný proces nebyl zabit, protože panic_on_oom má prioritu před oom_kill_allocating_task, a tak místo zabití procesu došlo rovnou k panice.
+~~~
+crash> bt -fl
+PID: 2359   TASK: ff38963f46e65ac0  CPU: 0   COMMAND: "stress"
+ #0 [ff41a7a440acfa38] machine_kexec at ffffffff9e6635ce
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/arch/x86/kernel/machine_kexec_64.c: 389
+    ff41a7a440acfa40: 0000803411191500 ff38963f40000000
+    ff41a7a440acfa50: 0000000075003000 ff38963fb5003000
+    ff41a7a440acfa60: 0000000075002000 fffa322300040800
+    ff41a7a440acfa70: 433f803411191500 0000000000000000
+    ff41a7a440acfa80: ff41a7a440acfa98 ffffffff9f6e9990
+    ff41a7a440acfa90: ffffffff9e79d6bd
+ #1 [ff41a7a440acfa90] __crash_kexec at ffffffff9e79d6bd
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/kernel/kexec_core.c: 957
+    ff41a7a440acfa98: ff41a7a440acfd18 0000000000000001
+    ff41a7a440acfaa8: 0000000000000003 ffffffff9f6e9990
+    ff41a7a440acfab8: ff41a7a440acfbd0 0000000000000000
+    ff41a7a440acfac8: 0000000000000001 0000000000000000
+    ff41a7a440acfad8: 0000000000aaaaaa ffffffff9fc07b80
+    ff41a7a440acfae8: 0000000000000001 ff38963f46e65ac0
+    ff41a7a440acfaf8: 0000000000000000 ff38963f46e65ac0
+    ff41a7a440acfb08: ffffffff9fcb4a40 0000000000000003
+    ff41a7a440acfb18: ffffffff9e79d75f 0000000000000010
+    ff41a7a440acfb28: 0000000000000046 ff41a7a440acfa98
+    ff41a7a440acfb38: 0000000000000000 433f803411191500
+    ff41a7a440acfb48: ff41a7a440acfc00 ff41a7a440acfbd0
+    ff41a7a440acfb58: ffffffff9e6eb227
+ #2 [ff41a7a440acfb58] panic at ffffffff9e6eb227
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./arch/x86/include/asm/smp.h: 72
+    ff41a7a440acfb60: 0000000000000010 ff41a7a440acfbe0
+    ff41a7a440acfb70: ff41a7a440acfb80 433f803411191500
+    ff41a7a440acfb80: 000000000000a187 ffffffff9f6e93bb
+    ff41a7a440acfb90: 0000000000000000 0000000000000000
+    ff41a7a440acfba0: 00000000000002e8 0000000000aaaaaa
+    ff41a7a440acfbb0: ff41a7a440acfc98 ff38963fbffb3ce0
+    ff41a7a440acfbc0: 0000000000000003 0000000000000001
+    ff41a7a440acfbd0: 0000000000000000 ffffffff9e87e6f1
+ #3 [ff41a7a440acfbd8] out_of_memory.cold.35 at ffffffff9e87e6f1
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/mm/oom_kill.c: 1088
+    ff41a7a440acfbe0: 0000000000000000 433f803411191500
+    ff41a7a440acfbf0: 0000000000000000 0000000000000713
+    ff41a7a440acfc00: ff38963f46e65ac0 0000000000000000
+    ff41a7a440acfc10: 00000000006280ca ffffffff9e8d4825
+ #4 [ff41a7a440acfc18] __alloc_pages_slowpath at ffffffff9e8d4825
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/mm/page_alloc.c: 4056
+    ff41a7a440acfc20: 0000000000000240 0000000000000000
+    ff41a7a440acfc30: 0000000000000000 0000000000000060
+    ff41a7a440acfc40: 0000000000000073 0000000000000000
+    ff41a7a440acfc50: 0000000000000000 0000000100000240
+    ff41a7a440acfc60: 0020000000000000 00000000006280ca
+    ff41a7a440acfc70: 00000000004280ca 0040000000000010
+    ff41a7a440acfc80: 0000004000000000 0000005000000010
+    ff41a7a440acfc90: 00000000000000f0 ff38963fbffb3cc0
+    ff41a7a440acfca0: 0000000000000000 0000000000000000
+    ff41a7a440acfcb0: 00000000006280ca 000000000007167c
+    ff41a7a440acfcc0: 0000000000000000 0000000000000000
+    ff41a7a440acfcd0: 0000000000000000 433f803411191500
+    ff41a7a440acfce0: 00000000006280ca 0000000000000000
+    ff41a7a440acfcf0: 0000000000000000 00000000006280ca
+    ff41a7a440acfd00: 0000000000000000 0000000000000000
+    ff41a7a440acfd10: ffffffff9e8d4beb
+ #5 [ff41a7a440acfd10] __alloc_pages_nodemask at ffffffff9e8d4beb
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/mm/page_alloc.c: 4949
+    ff41a7a440acfd18: ff38963fbffb3cc0 0000000000000000
+    ff41a7a440acfd28: ff38963fbffb3cc0 0000000300000001
+    ff41a7a440acfd38: 0000000000000000 433f803411191500
+    ff41a7a440acfd48: ffffffffa06d73e0 00000000006280ca
+    ff41a7a440acfd58: 0000000000000000 0000000000000000
+    ff41a7a440acfd68: ff38963f52bee2b8 ffffffff9e8ef414
+ #6 [ff41a7a440acfd70] alloc_pages_vma at ffffffff9e8ef414
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./include/linux/mempolicy.h: 78
+    ff41a7a440acfd78: ff38963f00000000 ff41a7a440acfdf8
+    ff41a7a440acfd88: ff38963f52bee2b8 0000000000000001
+    ff41a7a440acfd98: 0000000000000001 00007fb14644e010
+    ff41a7a440acfda8: ff38963f740db180 ffffffff9e8b1077
+ #7 [ff41a7a440acfdb0] do_anonymous_page at ffffffff9e8b1077
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./include/linux/highmem.h: 208
+    ff41a7a440acfdb8: 0000000000000270 000000000384c067
+    ff41a7a440acfdc8: 0000000000000190 0000000000000001
+    ff41a7a440acfdd8: 00007fb14644e010 ff38963f740db180
+    ff41a7a440acfde8: ffffffff9e8b7336
+ #8 [ff41a7a440acfde8] __handle_mm_fault at ffffffff9e8b7336
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/mm/memory.c: 4141
+    ff41a7a440acfdf0: ffffffff9f0001f1 ff38963f52bee2b8
+    ff41a7a440acfe00: 006000c000000255 00000007fb14644e
+    ff41a7a440acfe10: 00007fb14644e000 ff38963f46bc5190
+    ff41a7a440acfe20: ff38963f433ab628 0000000000000000
+    ff41a7a440acfe30: 0000000000000000 0000000000000000
+    ff41a7a440acfe40: 0000000000000000 0000000000000000
+    ff41a7a440acfe50: 0000000000000000 0000000000000000
+    ff41a7a440acfe60: 433f803411191500 0000000000000255
+    ff41a7a440acfe70: ff38963f52bee2b8 00007fb14644e010
+    ff41a7a440acfe80: 0000000000000040 ff38963f740db180
+    ff41a7a440acfe90: ff38963f46e65ac0 ffffffff9e8b742e
+ #9 [ff41a7a440acfe98] handle_mm_fault at ffffffff9e8b742e
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/mm/memory.c: 4313
+    ff41a7a440acfea0: 0000000000000006 ff41a7a440acff58
+    ff41a7a440acfeb0: 00007fb14644e010 0000000000000255
+    ff41a7a440acfec0: ffffffff9e674f5d
+#10 [ff41a7a440acfec0] __do_page_fault at ffffffff9e674f5d
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./include/linux/sched/signal.h: 397
+    ff41a7a440acfec8: ff38963f740db1f0 0000000000000000
+    ff41a7a440acfed8: 0000000000000000 0000000000000002
+    ff41a7a440acfee8: ff38963f46e65ac0 0000000000000000
+    ff41a7a440acfef8: ff41a7a440acff58 00007fb14644e010
+    ff41a7a440acff08: 0000000000000006 0000000000000000
+    ff41a7a440acff18: 0000000000000000 ffffffff9e675267
+#11 [ff41a7a440acff20] do_page_fault at ffffffff9e675267
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./arch/x86/include/asm/jump_label.h: 38
+    ff41a7a440acff28: 0000000000000000 0000000000000000
+    ff41a7a440acff38: ffffffff9f001108 0000000000000000
+    ff41a7a440acff48: 0000000000000000 ffffffff9f00111e
+#12 [ff41a7a440acff50] page_fault at ffffffff9f00111e
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/arch/x86/entry/entry_64.S: 1224
+    RIP: 000056525428d210  RSP: 00007ffe41cb9f40  RFLAGS: 00010206
+    RAX: 000000000841a000  RBX: 0000000000000000  RCX: 00007fb13e034010
+    RDX: 0000000000000000  RSI: 0000000010001000  RDI: 0000000000000000
+    RBP: 00007fb13e034010   R8: 00000000ffffffff   R9: 0000000000000000
+    R10: 0000000000000022  R11: 0000000000000246  R12: 0000000000001000
+    R13: 000056525428f004  R14: 0000000000000002  R15: 0000000010000000
+    ORIG_RAX: ffffffffffffffff  CS: 0033  SS: 002b
+
+Můžeme se pokusit zjistit, na jaké adrese chyba nastala.    
+~~~
+crash> __do_page_fault
+__do_page_fault = $4 =
+ {void (struct pt_regs *, unsigned long, unsigned long)} 0xffffffff9e674d70 <__do_page_fault>
+ 
+static noinline void
+__do_page_fault(struct pt_regs *regs, unsigned long error_code,
+		unsigned long address)
+
+Funkce získává adresu jako 3. parametr, z bt výše tedy vyčteme, že adresou je '00007fb14644e010'.
+~~~
+Zjistili jsme, že na počítači běžel program stress, který si zabral většinu paměti. Během jeho běhu se ale
+pokusil pracovat s pamětí na adrese 00007fb14644e010 - to bohužel nebylo možné, a tak byl vyvolán Page fault.
+V reakci na to se kernel pokusil alokovat další místo pro stránku, bohužel nebyl dostatek volného místa.
+Protože nebylo možné ukončit žádný proces a místo tak uvolnit, systém zpanikařil.
+Chybě v tomto modelovém případě předejít nešlo, avšak obecně by pomohlo mít větší RAM nebo nepanikařit v případě,
+že dojde k nedostatku paměti, a nechat tuto situaci vyřešit oom-killer.

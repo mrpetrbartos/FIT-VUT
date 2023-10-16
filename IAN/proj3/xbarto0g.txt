@@ -1,0 +1,375 @@
+Analýza pádu kernelu
+~~~
+./crash ...
+      KERNEL: ../ian_project2_2023/vmlinux  [TAINTED]
+    DUMPFILE: vmcore_p3  [PARTIAL DUMP]
+        CPUS: 4
+        DATE: Wed Mar 30 15:34:31 CEST 2022
+      UPTIME: 00:04:06
+LOAD AVERAGE: 2.54, 1.11, 0.43
+       TASKS: 197
+    NODENAME: rhel8-student-temp
+     RELEASE: 4.18.0-348.12.2.el8_5.x86_64
+     VERSION: #1 SMP Mon Jan 17 07:06:06 EST 2022
+     MACHINE: x86_64  (2095 Mhz)
+      MEMORY: 2 GB
+       PANIC: "Kernel panic - not syncing: hung_task: blocked tasks"
+         PID: 42
+     COMMAND: "khungtaskd"
+        TASK: ff47e40b7fac5ac0  [THREAD_INFO: ff47e40b7fac5ac0]
+         CPU: 2
+       STATE: TASK_RUNNING (PANIC)
+
+
+Je dobré si povšimnout, že kernel je tainted, tedy byl načten nějaký modul,
+který není "oficiální". Jak z pole COMMAND, tak z pole PANIC můžeme vyčíst,
+že nějaký proces se nachází v nepřerušitelném spánku.
+~~~
+crash> log | less
+[   51.555322] smajdalf: loading out-of-tree module taints kernel.
+[   51.555903] smajdalf: module license 'RH-EDU' taints kernel.
+[   51.556426] Disabling lock debugging due to kernel taint
+[   51.556949] smajdalf: module verification failed: signature and/or required key missing - tainting kernel
+[   51.558281] Smajdalf: Carodej nikdy nechodi pozde.
+
+
+Z logu lze vyčíst, že jméno výše zmíněného načteného modulu je 'smajdalf' 
+~~~
+crash> log | tail -n 48
+[  245.808706] INFO: task systemd:1 blocked for more than 120 seconds.
+[  245.809290]       Tainted: P           OE    --------- -  - 4.18.0-348.12.2.el8_5.x86_64 #1
+[  245.810057] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[  245.810779] task:systemd         state:D stack:    0 pid:    1 ppid:     0 flags:0x00000000
+[  245.811520] Call Trace:
+[  245.811758]  __schedule+0x2bd/0x760
+[  245.812076]  schedule+0x37/0xa0
+[  245.812363]  rwsem_down_read_slowpath+0x360/0x3d0
+[  245.812802]  __do_page_fault+0x3b1/0x4c0
+[  245.813157]  do_page_fault+0x37/0x130
+[  245.813493]  ? page_fault+0x8/0x30
+[  245.813812]  page_fault+0x1e/0x30
+[  245.814117] RIP: 0033:0x7f2411c4e27f
+[  245.814452] Code: Unable to access opcode bytes at RIP 0x7f2411c4e255.
+[  245.815041] RSP: 002b:00007fff58f62300 EFLAGS: 00010206
+[  245.815515] RAX: 000055c2b6810bf0 RBX: 00007f2411f89bc0 RCX: 000055c2b67f67c0
+[  245.816155] RDX: 00007f2411f89c50 RSI: 00007f2411f89c40 RDI: 00007f2411f89bc8
+[  245.816798] RBP: 000000000000001d R08: 000055c2b66515f0 R09: 000055c2b66515e0
+[  245.817433] R10: 00007f2411f89bc0 R11: 0000000000000007 R12: 0000000000000003
+[  245.818075] R13: 000000000000001d R14: 00007f2411f89bc0 R15: 0000000000000030
+[  245.818753] NMI backtrace for cpu 2
+[  245.819072] CPU: 2 PID: 42 Comm: khungtaskd Kdump: loaded Tainted: P           OE    --------- -  - 4.18.0-348.12.2.el8_5.x86_64 #1
+[  245.820128] Hardware name: Red Hat Container-native virtualization/RHEL-AV, BIOS 1.14.0-1.module+el8.4.0+8855+a9e237a9 04/01/2014
+[  245.821168] Call Trace:
+[  245.821402]  dump_stack+0x5c/0x80
+[  245.821713]  nmi_cpu_backtrace.cold.6+0x13/0x4e
+[  245.822125]  ? lapic_can_unplug_cpu.cold.29+0x37/0x37
+[  245.822587]  nmi_trigger_cpumask_backtrace+0xde/0xe0
+[  245.823039]  watchdog+0x223/0x2e0
+[  245.823345]  ? hungtask_pm_notify+0x40/0x40
+[  245.823730]  kthread+0x116/0x130
+[  245.824028]  ? kthread_flush_work_fn+0x10/0x10
+[  245.824436]  ret_from_fork+0x1f/0x40
+[  245.824774] Sending NMI from CPU 2 to CPUs 0-1,3:
+[  245.825215] NMI backtrace for cpu 0 skipped: idling at native_safe_halt+0xe/0x10
+[  245.825217] NMI backtrace for cpu 1 skipped: idling at native_safe_halt+0xe/0x10
+[  245.825228] NMI backtrace for cpu 3 skipped: idling at native_safe_halt+0xe/0x10
+[  245.826209] Kernel panic - not syncing: hung_task: blocked tasks
+[  245.829539] CPU: 2 PID: 42 Comm: khungtaskd Kdump: loaded Tainted: P           OE    --------- -  - 4.18.0-348.12.2.el8_5.x86_64 #1
+[  245.831540] Hardware name: Red Hat Container-native virtualization/RHEL-AV, BIOS 1.14.0-1.module+el8.4.0+8855+a9e237a9 04/01/2014
+[  245.833520] Call Trace:
+[  245.834215]  dump_stack+0x5c/0x80
+[  245.834979]  panic+0xe7/0x2a9
+[  245.835707]  watchdog+0x22f/0x2e0
+[  245.836450]  ? hungtask_pm_notify+0x40/0x40
+[  245.837255]  kthread+0x116/0x130
+[  245.837977]  ? kthread_flush_work_fn+0x10/0x10
+[  245.838792]  ret_from_fork+0x1f/0x40
+
+
+O něco později dochází k panice. Vypadá to, že zdrojem problému bude právě Šmajdalf a systemd (PID 1),
+který je uspaný už déle než 120 sekund a je ve stavu D (TASK_UNINTERRUPTIBLE) [1] a nelze ho tedy vzbudit.
+
+[1] https://helpful.knobs-dials.com/index.php/D_state#Process_states.2C_CPU_use_types
+~~~
+crash> runq
+CPU 0 RUNQUEUE: ff47e40b7fa2a1c0
+  CURRENT: PID: 0      TASK: ffffffff8b418840  COMMAND: "swapper/0"
+  RT PRIO_ARRAY: ff47e40b7fa2a400
+     [no tasks queued]
+  CFS RB_ROOT: ff47e40b7fa2a270
+     [no tasks queued]
+
+CPU 1 RUNQUEUE: ff47e40b7faaa1c0
+  CURRENT: PID: 0      TASK: ff47e40b018e8000  COMMAND: "swapper/1"
+  RT PRIO_ARRAY: ff47e40b7faaa400
+     [no tasks queued]
+  CFS RB_ROOT: ff47e40b7faaa270
+     [no tasks queued]
+
+CPU 2 RUNQUEUE: ff47e40b7fb2a1c0
+  CURRENT: PID: 42     TASK: ff47e40b7fac5ac0  COMMAND: "khungtaskd"
+  RT PRIO_ARRAY: ff47e40b7fb2a400
+     [no tasks queued]
+  CFS RB_ROOT: ff47e40b7fb2a270
+     [120] PID: 387    TASK: ff47e40b0b6e9e40  COMMAND: "kworker/2:3"
+
+CPU 3 RUNQUEUE: ff47e40b7fbaa1c0
+  CURRENT: PID: 0      TASK: ff47e40b018edac0  COMMAND: "swapper/3"
+  RT PRIO_ARRAY: ff47e40b7fbaa400
+     [no tasks queued]
+  CFS RB_ROOT: ff47e40b7fbaa270
+     [no tasks queued]
+
+
+Kromě CPU 2 byly v run queue idle procesy.
+~~~
+crash> bt -lf 1
+PID: 1      TASK: ff47e40b01891e40  CPU: 2   COMMAND: "systemd"
+ #0 [ff7ea32980327d88] __schedule at ffffffff8a77a2ad
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/kernel/sched/core.c: 3180
+    ff7ea32980327d90: ff47e40b01892890 0000000000000000
+    ff7ea32980327da0: ff47e40b018ebc80 ff47e40b01891e40
+    ff7ea32980327db0: ff47e40b7fb2a1c0 ff7ea32980327e10
+    ff7ea32980327dc0: ffffffff8a77a2ad ff7ea32980327ea0
+    ff7ea32980327dd0: ff47e40b07531f00 ff47e40b00000004
+    ff7ea32980327de0: 1959a3c6aa7d1200 ff47e40b01891e40
+    ff7ea32980327df0: 0000000000000002 0000000000000000
+    ff7ea32980327e00: 0000000000000000 ff47e40b340bec78
+    ff7ea32980327e10: ff7ea32980327eb8 ffffffff8a77a787
+ #1 [ff7ea32980327e18] schedule at ffffffff8a77a787
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./arch/x86/include/asm/current.h: 15
+    ff7ea32980327e20: ff47e40b340bec70 ffffffff8a77d320
+ #2 [ff7ea32980327e28] rwsem_down_read_slowpath at ffffffff8a77d320
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/kernel/locking/rwsem.c: 987
+    ff7ea32980327e30: 765a1ed8ea031014 ff47e40b340bec78
+    ff7ea32980327e40: ff47e40b340bec88 0000000000000000
+    ff7ea32980327e50: 0000000000000001 ff7ea32980327e50
+    ff7ea32980327e60: ff7ea329809ffd70 ff47e40b340bec78
+    ff7ea32980327e70: ff47e40b01891e40 0000000000000001
+    ff7ea32980327e80: 00000000fffcdd63 1959a3c6aa7d1200
+    ff7ea32980327e90: 0000000000000007 000055c2b6810c00
+    ff7ea32980327ea0: 0000000000000255 ff47e40b340bec00
+    ff7ea32980327eb0: ff47e40b01891e40 ff7ea32980327f58
+    ff7ea32980327ec0: ffffffff89e75121
+ #3 [ff7ea32980327ec0] __do_page_fault at ffffffff89e75121
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./include/linux/mmap_lock.h: 46
+    ff7ea32980327ec8: ff47e40b340bec70 0000000000000000
+    ff7ea32980327ed8: 0000000000000000 0000000000000002
+    ff7ea32980327ee8: 0000000000000000 0000000000000000
+    ff7ea32980327ef8: ff7ea32980327f58 000055c2b6810c00
+    ff7ea32980327f08: 0000000000000007 0000000000000000
+    ff7ea32980327f18: 0000000000000000 ffffffff89e75267
+ #4 [ff7ea32980327f20] do_page_fault at ffffffff89e75267
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./arch/x86/include/asm/jump_label.h: 38
+    ff7ea32980327f28: 0000000000000000 0000000000000000
+    ff7ea32980327f38: ffffffff8a801108 0000000000000000
+    ff7ea32980327f48: 0000000000000000 ffffffff8a80111e
+ #5 [ff7ea32980327f50] page_fault at ffffffff8a80111e
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/arch/x86/entry/entry_64.S: 1224
+    RIP: 00007f2411c4e27f  RSP: 00007fff58f62300  RFLAGS: 00010206
+    RAX: 000055c2b6810bf0  RBX: 00007f2411f89bc0  RCX: 000055c2b67f67c0
+    RDX: 00007f2411f89c50  RSI: 00007f2411f89c40  RDI: 00007f2411f89bc8
+    RBP: 000000000000001d   R8: 000055c2b66515f0   R9: 000055c2b66515e0
+    R10: 00007f2411f89bc0  R11: 0000000000000007  R12: 0000000000000003
+    R13: 000000000000001d  R14: 00007f2411f89bc0  R15: 0000000000000030
+    ORIG_RAX: ffffffffffffffff  CS: 0033  SS: 002b
+
+
+Z bt vidíme, že jsme se pokusili pracovat s pamětí, která ale byla zamčená.
+~~~
+rwsem_down_read_slowpath = $7 =
+ {struct rw_semaphore *(struct rw_semaphore *, long, int)} 0xffffffff8a77cfc0 <rwsem_down_read_slowpath>
+
+
+Semafor má pak adresu ff47e40b340bec70.
+~~~
+crash> struct rw_semaphore ff47e40b340bec70
+struct rw_semaphore {
+  count = {
+    counter = 0x3
+  },
+  wait_list = {
+    next = 0xff7ea32980327e60,
+    prev = 0xff7ea329809ffd70
+  },
+  wait_lock = {
+    raw_lock = {
+      {
+        val = {
+          counter = 0x0
+        },
+        {
+          locked = 0x0,
+          pending = 0x0
+        },
+        {
+          locked_pending = 0x0,
+          tail = 0x0
+        }
+      }
+    }
+  },
+  osq = {
+    tail = {
+      counter = 0x0
+    }
+  },
+  {
+    owner = {
+      counter = 0xff47e40b06683c80
+    },
+    rh_kabi_hidden_39 = {
+      owner = 0xff47e40b06683c80
+    },
+    {<No data fields>}
+  }
+}
+
+
+Nejdůležitější pro nás je pole 'owner' s adresou 0xff47e40b06683c80.
+~~~
+crash> bt -lf 0xff47e40b06683c80
+PID: 1706   TASK: ff47e40b06683c80  CPU: 0   COMMAND: "bash"
+ #0 [ff7ea32980ae7d30] __schedule at ffffffff8a77a2ad
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/kernel/sched/core.c: 3180
+    ff7ea32980ae7d38: ff47e40b066846d0 0000000000000000
+    ff7ea32980ae7d48: ffffffff8b418840 ff47e40b06683c80
+    ff7ea32980ae7d58: ff47e40b7fa2a1c0 ff7ea32980ae7db8
+    ff7ea32980ae7d68: ffffffff8a77a2ad ffffffffc0924100
+    ff7ea32980ae7d78: ff47e40b7fa00000 0000000000000004
+    ff7ea32980ae7d88: 3461f654a1c5dd00 ff47e40b06683c80
+    ff7ea32980ae7d98: ff7ea32980ae7e00 0000000000000002
+    ff7ea32980ae7da8: 0000000000000000 ffffffffc0924100
+    ff7ea32980ae7db8: ff7ea32980ae7e60 ffffffff8a77a787
+ #1 [ff7ea32980ae7dc0] schedule at ffffffff8a77a787
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/./arch/x86/include/asm/current.h: 15
+    ff7ea32980ae7dc8: ffffffffc0924108 ffffffff8a77aaca
+ #2 [ff7ea32980ae7dd0] schedule_preempt_disabled at ffffffff8a77aaca
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/kernel/sched/core.c: 4050
+    ff7ea32980ae7dd8: ffffffff8a77c7c5
+ #3 [ff7ea32980ae7dd8] __mutex_lock at ffffffff8a77c7c5
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/kernel/locking/mutex.c: 1041
+    ff7ea32980ae7de0: ffffffffc0924110 0000000000000000
+    ff7ea32980ae7df0: 0000000000000000 0000000000000887
+    ff7ea32980ae7e00: ffffffffc0924110 ffffffffc0924110
+    ff7ea32980ae7e10: ff47e40b06683c80 0000000000000000
+    ff7ea32980ae7e20: 0000000055555554 3461f654a1c5dd00
+    ff7ea32980ae7e30: ffffffffffffff13 0000000000000000
+    ff7ea32980ae7e40: 0000000000000001 ff7ea32980ae7f08
+    ff7ea32980ae7e50: 00005651e8df2ae0 ffffffffc0924080
+    ff7ea32980ae7e60: ffffffffffffffea ffffffffc0922048
+ #4 [ff7ea32980ae7e68] take_the_lock_of_power at ffffffffc0922048 [smajdalf]
+    ff7ea32980ae7e70: ff47e40b0a6cbd00 ffffffff8a1be885
+ #5 [ff7ea32980ae7e78] proc_sys_call_handler at ffffffff8a1be885
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/fs/proc/proc_sysctl.c: 613
+    ff7ea32980ae7e80: 0000000000000002 0000000000000002
+    ff7ea32980ae7e90: 0000000000000000 3461f654a1c5dd00
+    ff7ea32980ae7ea0: 0000000000000002 ff47e40b0a7d3000
+    ff7ea32980ae7eb0: 0000000000000000 ff7ea32980ae7f08
+    ff7ea32980ae7ec0: 00005651e8df2ae0 0000000000000000
+    ff7ea32980ae7ed0: ffffffff8a130955
+ #6 [ff7ea32980ae7ed0] vfs_write at ffffffff8a130955
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/fs/read_write.c: 549
+    ff7ea32980ae7ed8: ff47e40b0a7d3000 ff47e40b0a7d3000
+    ff7ea32980ae7ee8: 00005651e8df2ae0 0000000000000002
+    ff7ea32980ae7ef8: 0000000000000000 ffffffff8a130bcf
+ #7 [ff7ea32980ae7f00] ksys_write at ffffffff8a130bcf
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/fs/read_write.c: 598
+    ff7ea32980ae7f08: 0000000000000000 3461f654a1c5dd00
+    ff7ea32980ae7f18: 0000000000000001 ff7ea32980ae7f58
+    ff7ea32980ae7f28: 0000000000000000 0000000000000000
+    ff7ea32980ae7f38: ffffffff89e042bb
+ #8 [ff7ea32980ae7f38] do_syscall_64 at ffffffff89e042bb
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/arch/x86/entry/common.c: 302
+    ff7ea32980ae7f40: 0000000000000000 0000000000000000
+    ff7ea32980ae7f50: ffffffff8a8000ad
+ #9 [ff7ea32980ae7f50] entry_SYSCALL_64_after_hwframe at ffffffff8a8000ad
+    /usr/src/debug/kernel-4.18.0-348.12.2.el8_5/linux-4.18.0-348.12.2.el8_5.x86_64/arch/x86/entry/entry_64.S: 151
+    RIP: 00007f511d8a1648  RSP: 00007fffc07911b8  RFLAGS: 00000246
+    RAX: ffffffffffffffda  RBX: 0000000000000002  RCX: 00007f511d8a1648
+    RDX: 0000000000000002  RSI: 00005651e8df2ae0  RDI: 0000000000000001
+    RBP: 00005651e8df2ae0   R8: 000000000000000a   R9: 00007f511d934620
+    R10: 000000000000000a  R11: 0000000000000246  R12: 00007f511db746e0
+    R13: 0000000000000002  R14: 00007f511db6f880  R15: 0000000000000002
+    ORIG_RAX: 0000000000000001  CS: 0033  SS: 002b
+
+
+'take_the_lock_of_power', z názvu by šlo vyvodit, že má co dočinění se zámky.
+~~~
+crash> dis take_the_lock_of_power
+0xffffffffc0922000 <take_the_lock_of_power>:            nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffffc0922005 <take_the_lock_of_power+0x5>:        mov    -0x35508fcc(%rip),%rax        # 0xffffffff8b419040 <init_task+0x800>
+0xffffffffc092200c <take_the_lock_of_power+0xc>:        push   %rbx
+0xffffffffc092200d <take_the_lock_of_power+0xd>:        cmp    $0xffffffff8b419040,%rax
+0xffffffffc0922013 <take_the_lock_of_power+0x13>:       je     0xffffffffc092201e <take_the_lock_of_power+0x1e>
+0xffffffffc0922015 <take_the_lock_of_power+0x15>:       cmpl   $0x1,0x100(%rax)
+0xffffffffc092201c <take_the_lock_of_power+0x1c>:       je     0xffffffffc092204c <take_the_lock_of_power+0x4c>
+0xffffffffc092201e <take_the_lock_of_power+0x1e>:       mov    $0x9502f8ff,%ebx
+0xffffffffc0922023 <take_the_lock_of_power+0x23>:       pause
+0xffffffffc0922025 <take_the_lock_of_power+0x25>:       call   0xffffffff8a77a850 <_cond_resched>
+0xffffffffc092202a <take_the_lock_of_power+0x2a>:       sub    $0x1,%rbx
+0xffffffffc092202e <take_the_lock_of_power+0x2e>:       jne    0xffffffffc0922023 <take_the_lock_of_power+0x23>
+0xffffffffc0922030 <take_the_lock_of_power+0x30>:       mov    $0xffffffffc0924100,%rdi
+0xffffffffc0922037 <take_the_lock_of_power+0x37>:       call   0xffffffff8a77c9c0 <mutex_lock>
+0xffffffffc092203c <take_the_lock_of_power+0x3c>:       mov    $0xffffffffc0924100,%rdi
+0xffffffffc0922043 <take_the_lock_of_power+0x43>:       call   0xffffffff8a77c9c0 <mutex_lock>
+0xffffffffc0922048 <take_the_lock_of_power+0x48>:       xor    %eax,%eax
+0xffffffffc092204a <take_the_lock_of_power+0x4a>:       pop    %rbx
+0xffffffffc092204b <take_the_lock_of_power+0x4b>:       ret
+0xffffffffc092204c <take_the_lock_of_power+0x4c>:       mov    0x50(%rax),%rdi
+0xffffffffc0922050 <take_the_lock_of_power+0x50>:       add    $0x70,%rdi
+0xffffffffc0922054 <take_the_lock_of_power+0x54>:       call   0xffffffff8a77cf30 <down_write>
+0xffffffffc0922059 <take_the_lock_of_power+0x59>:       jmp    0xffffffffc092201e <take_the_lock_of_power+0x1e>
+
+
+Intuice byla správná, hned několikrát je volán 'mutex_lock'. Instrukce 'pause' napodívdá, že se jedná o spinlock,
+aktivně tedy čekáme. Vidíme také, že pomocí 'down_write' zamyká náš semafor.
+~~~
+crash> mutex_lock
+mutex_lock = $5 =
+ {void (struct mutex *)} 0xffffffff8a77c9c0 <mutex_lock>
+
+
+Adresa bude předána v RDI, jde tedy o 0xffffffffc0924100.
+
+
+crash> struct mutex 0xffffffffc0924100
+struct mutex {
+  owner = {
+    counter = 0xff47e40b06683c81
+  },
+  wait_lock = {
+    {
+      rlock = {
+        raw_lock = {
+          {
+            val = {
+              counter = 0x0
+            },
+            {
+              locked = 0x0,
+              pending = 0x0
+            },
+            {
+              locked_pending = 0x0,
+              tail = 0x0
+            }
+          }
+        }
+      }
+    }
+  },
+  osq = {
+    tail = {
+      counter = 0x0
+    }
+  },
+  wait_list = {
+    next = 0xff7ea32980ae7e00,
+    prev = 0xff7ea32980ae7e00
+  }
+}
+~~~
+systemd se snaží pracovat s pamětí, kterou ovšem hlídá zamklý semafor na adrese ff47e40b340bec70. Jelikož je 
+zamčený Šmajdalfem a neodemyká se, proces systemd visí, dokud khungtaskd, který detekuje spící procesy, 
+nevyvolá paniku.
