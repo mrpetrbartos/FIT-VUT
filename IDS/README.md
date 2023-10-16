@@ -1,5 +1,7 @@
 # IDS Projekt
 
+Collabo s kolegou [@defy01](https://github.com/defy01)
+
 ## Zadání
 
 První část - Datový model (ERD) a model případů užití
